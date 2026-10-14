@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="ja"><head>
 <!--
-  昼休みダッシュ  Ver.0.14（2026-10-14）
+  昼休みダッシュ  Ver.0.15（2026-10-14）
   ※ 更新するたびに、この番号と下の const VERSION を上げる
   ---- 更新履歴 ----
+  0.15 共有用食券：称号の下に余白（券を少し縦長に）
   0.14 結果画面のバージョン表記を削除。共有用食券の下のタイトルをタイトル画面と同じ組み（昼休みは影なし・12:00 ----▶ 13:00）に、ハッシュタグを外す。準備中の札を下げて券の白い部分に収める
   0.13 準備中の札を大きくし、券の上端から吊ってモード・混み具合ごと選べないように。モード名「社会人」→「会社員」。確認用URLを #comingsoon に
   0.12 公開前の「準備中」の札（10/21 12:00 JST に自動で開店）。URL末尾 #beta_lunch で確認用に遊べる
@@ -167,7 +168,7 @@ body{display:flex;align-items:center;justify-content:center}
 
 <script>
 'use strict';
-const VERSION='0.14';const TAG='#昼休み_ダッシュ'; // 共有用ハッシュタグ（「！」や中黒を入れるとXでリンクが切れる） // 更新するたびに上げる（タイトルと結果に表示される）
+const VERSION='0.15';const TAG='#昼休み_ダッシュ'; // 共有用ハッシュタグ（「！」や中黒を入れるとXでリンクが切れる） // 更新するたびに上げる（タイトルと結果に表示される）
 // =====================================================================
 //  昼休みダッシュ（試作 v0.2）  1秒 = 1分。12:00 → 13:00
 //  導入 → 券売機 → 受取口 → 運ぶ → 食べる → 返却 → ダッシュ → 到着
@@ -685,7 +686,7 @@ function dash(g,x0,x1,y){g.strokeStyle='#cdbf9f';g.lineWidth=4;g.setLineDash([14
 function makeCard(){const R=LR,c=document.createElement('canvas');c.width=1080;c.height=1350;const g=c.getContext('2d');g.textAlign='center';g.textBaseline='middle';
  const bg=g.createLinearGradient(0,0,0,1350);bg.addColorStop(0,'#2a241f');bg.addColorStop(1,'#14110f');g.fillStyle=bg;g.fillRect(0,0,1080,1350);
  g.fillStyle='rgba(255,255,255,.035)';for(let x=0;x<1080;x+=60)g.fillRect(x,0,2,1350);
- const X=110,Y=80,Wd=860,Hd=1070,CX=540;
+ const X=110,Y=72,Wd=860,Hd=1104,CX=540;
  g.save();g.shadowColor='rgba(0,0,0,.55)';g.shadowBlur=50;g.shadowOffsetY=18;g.fillStyle='#fbf5e6';rr(g,X,Y,Wd,Hd,14);g.fill();g.restore();
  g.save();rr(g,X,Y,Wd,Hd,14);g.clip();g.fillStyle='#d63c2b';g.fillRect(X,Y,Wd,116);g.restore();
  g.textAlign='left';fitText(g,'食　券',X+44,Y+60,58,300,DISP,'#fff');g.textAlign='right';g.font='800 34px '+FONT;g.fillStyle='#fff';g.fillText(R.mode,X+Wd-44,Y+60);g.textAlign='center';
@@ -695,13 +696,13 @@ function makeCard(){const R=LR,c=document.createElement('canvas');c.width=1080;c
  const ny=Y+565;g.fillStyle='#1f1b17';g.beginPath();g.arc(X,ny,26,0,7);g.arc(X+Wd,ny,26,0,7);g.fill();dash(g,X+40,X+Wd-40,ny); // ミシン目
  R.cells.forEach((cl,i)=>{const cx=X+(i%2?Wd*.75:Wd*.25),cy=ny+80+((i/2)|0)*112;g.font='800 30px '+FONT;g.fillStyle='#8b7d6b';g.fillText(cl[0],cx,cy-24);g.font='400 50px '+DISP;g.fillStyle='#2a221c';g.fillText(cl[1],cx,cy+28)});
  dash(g,X+40,X+Wd-40,ny+285);
- g.font='800 30px '+FONT;g.fillStyle='#8b7d6b';g.fillText('SCORE',CX,ny+328);fitText(g,R.sc.toLocaleString(),CX,ny+390,96,600,DISP,'#2a221c');g.font='800 40px '+FONT;g.fillStyle='#2a221c';g.fillText('「'+R.tt+'」',CX,ny+478,560);
+ g.font='800 30px '+FONT;g.fillStyle='#8b7d6b';g.fillText('SCORE',CX,ny+328);fitText(g,R.sc.toLocaleString(),CX,ny+390,96,600,DISP,'#2a221c');g.font='800 40px '+FONT;g.fillStyle='#2a221c';g.fillText('「'+R.tt+'」',CX,ny+470,560);
  g.save();g.translate(X+Wd-112,ny+372);g.rotate(-.22);g.globalAlpha=.85;g.strokeStyle='#d63c2b';g.lineWidth=7;g.beginPath();g.arc(0,0,64,0,7);g.stroke();fitText(g,R.stamp,0,3,34,96,DISP,'#d63c2b');g.restore();
  // タイトル画面と同じ組み：「昼休み」は影なし、「ダッシュ」だけ赤い影。下に 12:00 ----▶ 13:00
- g.font='400 30px '+DISP;g.fillStyle='#fbf5e6';g.fillText('昼休み',CX,1190);
- g.font='400 46px '+DISP;g.fillStyle='#d63c2b';g.fillText('ダッシュ',CX+4,1236);g.fillStyle='#fbf5e6';g.fillText('ダッシュ',CX,1232);
- {g.font='400 24px '+DISP;const a='12:00',b='13:00',aw=g.measureText(a).width,bw=g.measureText(b).width,AW=64,gp=14,tw=aw+bw+AW+gp*2;let x=CX-tw/2;g.textAlign='left';g.fillStyle='#fbf5e6';g.fillText(a,x,1290);x+=aw+gp;
-  for(let i=0;i<AW-12;i+=11)g.fillRect(x+i,1288.5,7,3);g.beginPath();g.moveTo(x+AW-12,1281.5);g.lineTo(x+AW,1290);g.lineTo(x+AW-12,1298.5);g.fill();x+=AW+gp;g.fillText(b,x,1290);g.textAlign='center'}
+ g.font='400 30px '+DISP;g.fillStyle='#fbf5e6';g.fillText('昼休み',CX,1212);
+ g.font='400 46px '+DISP;g.fillStyle='#d63c2b';g.fillText('ダッシュ',CX+4,1256);g.fillStyle='#fbf5e6';g.fillText('ダッシュ',CX,1252);
+ {g.font='400 24px '+DISP;const a='12:00',b='13:00',aw=g.measureText(a).width,bw=g.measureText(b).width,AW=64,gp=14,tw=aw+bw+AW+gp*2;let x=CX-tw/2;g.textAlign='left';g.fillStyle='#fbf5e6';g.fillText(a,x,1306);x+=aw+gp;
+  for(let i=0;i<AW-12;i+=11)g.fillRect(x+i,1304.5,7,3);g.beginPath();g.moveTo(x+AW-12,1297.5);g.lineTo(x+AW,1306);g.lineTo(x+AW-12,1314.5);g.fill();x+=AW+gp;g.fillText(b,x,1306);g.textAlign='center'}
  return c}
 async function shareImg(){if(!LR)return;const c=makeCard();
  try{const blob=await new Promise(r=>c.toBlob(r,'image/png'));const f=new File([blob],'hiruyasumi-dash.png',{type:'image/png'});
