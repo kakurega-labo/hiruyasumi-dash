@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="ja"><head>
 <!--
-  昼休みダッシュ  Ver.0.15（2026-10-14）
+  昼休みダッシュ  Ver.0.16（2026-10-14）
   ※ 更新するたびに、この番号と下の const VERSION を上げる
   ---- 更新履歴 ----
+  0.16 準備中はモード・混み具合を未選択の見た目に。人どうしがすり抜けず、ぶつかると「おっと」等。社食で後ろの人のトレーにも料理が載る
   0.15 共有用食券：称号の下に余白（券を少し縦長に）
   0.14 結果画面のバージョン表記を削除。共有用食券の下のタイトルをタイトル画面と同じ組み（昼休みは影なし・12:00 ----▶ 13:00）に、ハッシュタグを外す。準備中の札を下げて券の白い部分に収める
   0.13 準備中の札を大きくし、券の上端から吊ってモード・混み具合ごと選べないように。モード名「社会人」→「会社員」。確認用URLを #comingsoon に
@@ -54,6 +55,7 @@ body{display:flex;align-items:center;justify-content:center}
 .sub b{font-weight:400}
 .sub i{position:relative;width:58px;height:3px;background:repeating-linear-gradient(90deg,var(--paper) 0 7px,transparent 7px 11px)}
 .sub i::after{content:'';position:absolute;right:-4px;top:-6px;border-style:solid;border-width:7.5px 0 7.5px 10px;border-color:transparent transparent transparent var(--paper)}
+.tk.locked .seg button.a{border-color:#d8ccb2;background:#fff;color:var(--ink)}.tk.locked .seg button.a small{color:var(--mute)} /* 準備中はどれも選ばれていない見た目に */
 .tk.locked .row,.tk.locked .go,.tk.locked .hb{filter:grayscale(1);opacity:.3;pointer-events:none}
 #prep{position:absolute;left:0;right:0;top:12px;bottom:0;display:flex;justify-content:center;align-items:flex-start;pointer-events:none;z-index:2}
 #prep .hang{position:relative;padding-top:44px;transform-origin:50% 6px;cursor:pointer;will-change:transform;pointer-events:auto}
@@ -168,7 +170,7 @@ body{display:flex;align-items:center;justify-content:center}
 
 <script>
 'use strict';
-const VERSION='0.15';const TAG='#昼休み_ダッシュ'; // 共有用ハッシュタグ（「！」や中黒を入れるとXでリンクが切れる） // 更新するたびに上げる（タイトルと結果に表示される）
+const VERSION='0.16';const TAG='#昼休み_ダッシュ'; // 共有用ハッシュタグ（「！」や中黒を入れるとXでリンクが切れる） // 更新するたびに上げる（タイトルと結果に表示される）
 // =====================================================================
 //  昼休みダッシュ（試作 v0.2）  1秒 = 1分。12:00 → 13:00
 //  導入 → 券売機 → 受取口 → 運ぶ → 食べる → 返却 → ダッシュ → 到着
@@ -358,10 +360,16 @@ function worldStep(dt){
  spT.leave-=dt;if(spT.leave<=0){spT.leave=C.leave*rnd(.6,1.4);spawnLeaver()}
  spT.pass-=dt;if(spT.pass<=0){spT.pass=C.pass*rnd(.6,1.4);if(npcs.length<(CK==='hi'?26:14))spawnPass()}
  for(const n of npcs)npcStep(n,dt);if(npcs.some(n=>n.dead))npcs=npcs.filter(n=>!n.dead);
- lineStep(dt);
+ npcSep(dt);lineStep(dt);
  for(const s of seats)if(s.pop>0)s.pop=Math.max(0,s.pop-dt*.9);
  steamT-=dt;if(steamT<=0){steamT=.12;const x=pick([52,104,256,308]);part(x+rnd(-8,8),1142,rnd(-6,6),rnd(-28,-18),rnd(1,1.6),rnd(6,10),2)}}
 let steamT=0;
+// 人どうしもすり抜けない。近づきすぎたら押し合って、たまに「おっと」とひと言
+function npcSep(dt){const R=24;for(const n of npcs)if(n.bc>0)n.bc-=dt;
+ for(let i=0;i<npcs.length;i++){const a=npcs[i];for(let j=i+1;j<npcs.length;j++){const b=npcs[j];if(a.kind==='line'&&b.kind==='line')continue;
+  const dx=b.x-a.x,dy=b.y-a.y,d2=dx*dx+dy*dy;if(d2>=R*R||d2<1e-4)continue;const d=Math.sqrt(d2),o=(R-d),ux=dx/d,uy=dy/d,wa=a.kind==='line'?0:b.kind==='line'?1:.5,wb=1-wa;
+  a.x-=ux*o*wa;a.y-=uy*o*wa;b.x+=ux*o*wb;b.y+=uy*o*wb;
+  const rv=(b.vx-a.vx)*ux+(b.vy-a.vy)*uy;if(d<R*.8&&rv<-25&&!(a.bc>0)&&!(b.bc>0)){const w=Math.random()<.5?a:b;w.bub=pick(['おっと','すみません','あ、どうも','失礼']);w.bt=1;a.bc=b.bc=2.5;a.pause=Math.max(a.pause,.2);b.pause=Math.max(b.pause,.2)}}}}
 
 // ---------------- プレイヤーと汁 ----------------
 const pl={x:180,y:1066,vx:0,vy:0,ang:Math.PI/2,ph:0,sx:0,sy:0,svx:0,svy:0,soup:100,bumps:0,sitP:0,near:null,on:false,bcd:0,hcd:0,bub:null,bt:0,qy:1066,dip:0,dipV:0,bowl:0,peak:0,dm:0,scd:0,spc:0,spAcc:0,seat:null,tray:1,stun:0,ccd:0,sm:100,water:0,wP:0,wcd:0};
@@ -462,7 +470,7 @@ function enterCafe(){scene='cafe';tMin=C.start;lastMin=Math.floor(tMin);ambLevel
  items.push({kind:'miso',n:'味噌汁',p:60,x:790,y:300,took:false,wob:0});items.push({kind:'reg',x:900,y:300,wob:0});
  cafe={items,tx:70,ttx:70,tv:0,cam:0,main:null,kob:null,miso:false,ahead:[],behind:[],idle:0,paid:false,payT:0,fly:[],drag:null,msg:null,hintT:0,bub:0};
  const na=CK==='hi'?2:0;for(let i=0;i<na;i++)cafe.ahead.push({take:{col:pick(TODAY).sc,kob:Math.random()<.6?pick(CAFE_KOB)[2]:null,miso:Math.random()<.6},x:330-i*112,pause:rnd(.4,1.2),stop:0,done:false,lt:0,p:mkPerson(),bub:null,bt:0});
- for(let i=0;i<(CK==='hi'?3:1);i++)cafe.behind.push({x:-38-i*96,p:mkPerson()});
+ for(let i=0;i<(CK==='hi'?3:1);i++)cafe.behind.push({x:-38-i*96,p:mkPerson(),take:{col:pick(TODAY).sc,kob:Math.random()<.6?pick(CAFE_KOB)[2]:null,miso:Math.random()<.6}}); // 後ろの人も売り場を過ぎるたびにトレーに載る
  Object.assign(pl,{sx:0,sy:0,svx:0,svy:0,soup:100,miso:0,kob:null,dip:0,dipV:0});bal=balShown=1000;payTotal=0}
 const CSTOPS=[330,470,660,790,900];
 function cafeMax(){let mx=CAFE_W-50;for(const a of cafe.ahead)if(!a.done&&a.lt<=0)mx=Math.min(mx,a.x-96);return Math.max(40,mx)}
@@ -547,7 +555,7 @@ function drawCafe(g){const c=cafe,k=trauma*trauma*RM*6;if(!c){g.fillStyle='#2e29
     if(t.kob&&a.x>=640){g.fillStyle='#fff';rr(g,x+5,TRAYY-14,11,11,2);g.fill();g.fillStyle=t.kob;g.beginPath();g.arc(x+10.5,TRAYY-8.5,3.6,0,7);g.fill()}
     if(t.miso&&a.x>=790){g.fillStyle='#7a2a1c';g.beginPath();g.arc(x+11,TRAYY+8,6,0,7);g.fill();g.fillStyle='#b9823e';g.beginPath();g.arc(x+11,TRAYY+8,4.3,0,7);g.fill()}}},
   big=(x,y,ang,sh,hr,ph,sp,tr,tc)=>{g.save();g.translate(x,y);g.scale(PS,PS);person(g,0,0,ang,sh,hr,ph,sp,tr,tc);g.restore()}; // 人はトレーと釣り合う大きさに
- for(const b of c.behind){big(b.x,PY,-Math.PI/2,b.p.shirt,b.p.hair,0,0,false);tray(b.x,false,false)}
+ for(const b of c.behind){big(b.x,PY,-Math.PI/2,b.p.shirt,b.p.hair,0,0,false);tray(b.x,false,b)}
  if(c.bub>0&&c.behind[0])bubble(g,c.behind[0].x,TRAYY-26,'あの…',clamp(c.bub*3,0,1),10);
  for(const a of c.ahead){if(a.done&&PY+a.lt*170>H+60)continue;big(a.x,a.done?PY+a.lt*170:PY,a.done?Math.PI/2:-Math.PI/2,a.p.shirt,a.p.hair,a.done?a.lt*20:0,a.done?60:0,a.done,a.p.tc);if(!a.done)tray(a.x,false,a);if(a.bt>0&&a.bub)bubble(g,a.x,TRAYY-26,a.bub,clamp(a.bt*3,0,1),10)}
  const ty=TRAYY+(pl.dip*1.2);g.save();g.translate(c.tx,0);g.strokeStyle='rgba(255,207,58,'+(.55+.25*Math.sin(clock*6))+')';g.lineWidth=2.5;g.beginPath();g.ellipse(0,PY+4,40,36,0,0,7);g.stroke();g.restore();
