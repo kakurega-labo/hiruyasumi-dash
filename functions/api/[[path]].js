@@ -1,7 +1,7 @@
 // Cloudflare Pages Functions
 //   POST /api/play   … 1ゲームを最後まで遊ぶごとに1回。集計して「今日のセーフ率」を返す。名前があれば今日の記名用紙に載せる
 //   POST /api/sign   … 結果画面で名前を記入したとき
-//   GET  /api/sheet  … 今日の記名用紙（新しい40件と、今日の人数）＋本日の様子（食数・いちばん人気・セーフ率）
+//   GET  /api/sheet  … 今日の記名用紙（40件で1枚。?page= で前の用紙、なければ最新の1枚）と、今日の人数＋本日の様子（食数・いちばん人気・セーフ率）
 // 必要なもの：D1 のバインディング名 DB（表は schema.sql）
 const J=(o,s=200)=>new Response(JSON.stringify(o),{status:s,headers:{'content-type':'application/json','cache-control':'no-store'}});
 const day=()=>new Date(Date.now()+324e5).toISOString().slice(0,10).replace(/-/g,''); // 日本時間の日付 YYYYMMDD
@@ -61,16 +61,17 @@ async function sign(ctx,env,d,raw,id,smenu){
 }
 
 async function sheet(env,req){
- const d=day(),u=new URL(req.url),h=await hashId(u.searchParams.get('id'));
- const [cnt,rows,me]=await Promise.all([
+ const d=day(),u=new URL(req.url),h=await hashId(u.searchParams.get('id')),P=40,pq=parseInt(u.searchParams.get('page'),10)||0;
+ const [cnt,me]=await Promise.all([
   env.DB.prepare('SELECT n FROM sheetn WHERE d=?').bind(d).first(),
-  env.DB.prepare('SELECT no,name,t,menu FROM sheet WHERE d=? ORDER BY no DESC LIMIT 40').bind(d).all(),
   h?env.DB.prepare('SELECT no FROM sheet WHERE d=? AND h=?').bind(d,h).first():null]);
+ const n=cnt?cnt.n:0,pages=Math.max(1,Math.ceil(n/P)),page=pq>=1&&pq<=pages?pq:pages; // 1枚目＝No.1〜40
+ const rows=await env.DB.prepare('SELECT no,name,t,menu FROM sheet WHERE d=? AND no>? AND no<=? ORDER BY no DESC').bind(d,(page-1)*P,page*P).all();
  // 本日の様子：失敗しても記名用紙は返す
  let stat=null;try{const [tot,top,dy]=await Promise.all([
    env.DB.prepare('SELECT SUM(n) n FROM menus WHERE d=?').bind(d).first(),
    env.DB.prepare('SELECT menu,SUM(n) n FROM menus WHERE d=? GROUP BY menu ORDER BY n DESC LIMIT 1').bind(d).first(),
    env.DB.prepare('SELECT SUM(plays) p,SUM(safe) s FROM days WHERE d=?').bind(d).first()]);
   stat={meals:tot&&tot.n||0,top:top?top.menu:'',rate:dy&&dy.p>=MIN?Math.round(dy.s/dy.p*100):null}}catch(e){}
- return J({d,n:cnt?cnt.n:0,rows:rows.results||[],mine:me?me.no:null,stat});
+ return J({d,n,page,pages,rows:rows.results||[],mine:me?me.no:null,stat});
 }
