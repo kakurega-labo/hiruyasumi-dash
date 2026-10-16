@@ -1,6 +1,6 @@
 // Cloudflare Pages Functions
 //   POST /api/play   … 1ゲームを最後まで遊ぶごとに1回。集計して「今日のセーフ率」を返す。名前があれば今日の記名用紙に載せる
-//   POST /api/sign   … 今日すでに遊び終えた人が、あとから名前を書いたとき
+//   POST /api/sign   … 結果画面で名前を記入したとき
 //   GET  /api/sheet  … 今日の記名用紙（新しい40件と、今日の人数）
 // 必要なもの：D1 のバインディング名 DB（表は schema.sql）
 const J=(o,s=200)=>new Response(JSON.stringify(o),{status:s,headers:{'content-type':'application/json','cache-control':'no-store'}});
@@ -20,7 +20,7 @@ export async function onRequest(ctx){
  if(!env.DB)return J({error:'no db'},500);
  if(path==='play'&&req.method==='POST')return play(ctx,env,req);
  if(path==='sheet'&&req.method==='GET')return sheet(env,req);
- if(path==='sign'&&req.method==='POST'){let b;try{b=await req.json()}catch(e){return J({error:'bad json'},400)}return J(await sign(ctx,env,day(),b&&b.name,b&&b.id))}
+ if(path==='sign'&&req.method==='POST'){let b;try{b=await req.json()}catch(e){return J({error:'bad json'},400)}return J(await sign(ctx,env,day(),b&&b.name,b&&b.id,b&&b.smenu))}
  return J({error:'not found'},404);
 }
 
@@ -44,17 +44,19 @@ async function play(ctx,env,req){
  }
  const out={rate:mine&&mine.plays>=MIN?Math.round(mine.safe/mine.plays*100):null};
  // 記名用紙：名前があれば、その端末の今日の1行目だけ書く（2回目以降は名前の書き換えだけ）。間引きはしない
- Object.assign(out,await sign(ctx,env,d,b.name,b.id));
+ Object.assign(out,await sign(ctx,env,d,b.name,b.id,b.smenu));
  return J(out);
 }
 
-async function sign(ctx,env,d,raw,id){
+// smenu：その日はじめて載るときのご注文（例：鴨南蛮そば＋冷奴・味噌汁）。2回目以降は変えない
+async function sign(ctx,env,d,raw,id,smenu){
  const name=cleanName(raw),h=name&&!badName(name)?await hashId(id):null;if(!h)return {};
  try{
   const ex=await env.DB.prepare('SELECT no,name FROM sheet WHERE d=? AND h=?').bind(d,h).first();
   if(ex){if(ex.name!==name)ctx.waitUntil(env.DB.prepare('UPDATE sheet SET name=? WHERE d=? AND h=?').bind(name,d,h).run());return {no:ex.no}}
   const n=await env.DB.prepare('INSERT INTO sheetn(d,n) VALUES(?,1) ON CONFLICT(d) DO UPDATE SET n=n+1 RETURNING n').bind(d).first();
-  await env.DB.prepare('INSERT OR IGNORE INTO sheet(d,no,h,name,t) VALUES(?,?,?,?,?)').bind(d,n.n,h,name,Date.now()).run();return {no:n.n,new:true};
+  const mn=String(smenu||'').normalize('NFKC').replace(/[^\p{L}\p{N}ー・+]/gu,'').replace(/\+/g,'＋').slice(0,24);
+  await env.DB.prepare('INSERT OR IGNORE INTO sheet(d,no,h,name,t,menu) VALUES(?,?,?,?,?,?)').bind(d,n.n,h,name,Date.now(),mn).run();return {no:n.n,new:true};
  }catch(e){return {}}
 }
 
@@ -62,7 +64,7 @@ async function sheet(env,req){
  const d=day(),u=new URL(req.url),h=await hashId(u.searchParams.get('id'));
  const [cnt,rows,me]=await Promise.all([
   env.DB.prepare('SELECT n FROM sheetn WHERE d=?').bind(d).first(),
-  env.DB.prepare('SELECT no,name,t FROM sheet WHERE d=? ORDER BY no DESC LIMIT 40').bind(d).all(),
+  env.DB.prepare('SELECT no,name,t,menu FROM sheet WHERE d=? ORDER BY no DESC LIMIT 40').bind(d).all(),
   h?env.DB.prepare('SELECT no FROM sheet WHERE d=? AND h=?').bind(d,h).first():null]);
  return J({d,n:cnt?cnt.n:0,rows:rows.results||[],mine:me?me.no:null});
 }
